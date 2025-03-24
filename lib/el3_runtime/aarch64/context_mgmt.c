@@ -190,6 +190,11 @@ static void setup_realm_context(cpu_context_t *ctx, const struct entry_point_inf
 	write_ctx_reg(state, CTX_SCR_EL3_SPOOFED, scr_el3_spoofed);
 	#endif
 
+	#if ENABLE_OPENCCA_PERF
+	if (is_feat_pmuv3_present()) {
+		pmuv3_init_el3();
+	}
+	#endif
 }
 #endif /* ENABLE_RME */
 
@@ -315,6 +320,11 @@ static void setup_ns_context(cpu_context_t *ctx, const struct entry_point_info *
 	setup_el1_context(ctx, ep);
 #endif /* (CTX_INCLUDE_EL2_REGS && IMAGE_BL31) */
 
+	#if ENABLE_OPENCCA_PERF
+	if (is_feat_pmuv3_present()) {
+		pmuv3_init_el3();
+	}
+	#endif
 	manage_extensions_nonsecure(ctx);
 }
 
@@ -1316,7 +1326,9 @@ static void el2_sysregs_context_save_common(el2_sysregs_t *ctx)
 	write_el2_ctx_common(ctx, hpfar_el2, read_hpfar_el2());
 	write_el2_ctx_common(ctx, hstr_el2, read_hstr_el2());
 	write_el2_ctx_common(ctx, mair_el2, read_mair_el2());
+	#if !(OPENCCA_ENABLE_PERF)
 	write_el2_ctx_common(ctx, mdcr_el2, read_mdcr_el2());
+	#endif
 	write_el2_ctx_common(ctx, sctlr_el2, read_sctlr_el2());
 	write_el2_ctx_common(ctx, spsr_el2, read_spsr_el2());
 	write_el2_ctx_common(ctx, sp_el2, read_sp_el2());
@@ -1350,7 +1362,9 @@ static void el2_sysregs_context_restore_common(el2_sysregs_t *ctx)
 	write_hpfar_el2(read_el2_ctx_common(ctx, hpfar_el2));
 	write_hstr_el2(read_el2_ctx_common(ctx, hstr_el2));
 	write_mair_el2(read_el2_ctx_common(ctx, mair_el2));
+	#if !(ENABLE_OPENCCA_PERF)
 	write_mdcr_el2(read_el2_ctx_common(ctx, mdcr_el2));
+	#endif
 	write_sctlr_el2(read_el2_ctx_common(ctx, sctlr_el2));
 	write_spsr_el2(read_el2_ctx_common(ctx, spsr_el2));
 	write_sp_el2(read_el2_ctx_common(ctx, sp_el2));

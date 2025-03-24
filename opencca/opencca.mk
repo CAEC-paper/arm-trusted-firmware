@@ -8,7 +8,7 @@ include ${PLAT_DIR}/opencca/opencca-${PLAT}.mk
 # TODO: Decide if this includes board specific files or vis versa
 # TODO: Move environment vars here for openccas
 
-CFLAGS += -DENABLE_OPENCCA=$(ENABLE_OPENCCA)
+CFLAGS += -DENABLE_OPENCCA=$(ENABLE_OPENCCA) -DENABLE_OPENCCA_PERF=$(ENABLE_OPENCCA_PERF)
 
 ifeq ($(FFH_SUPPORT),1)
 # enabling FFH_SUPPORT currently interferes with SCR_EL3 spoofing definitions.

@@ -32,6 +32,7 @@ void pmuv3_enable(cpu_context_t *ctx)
 #endif /* (CTX_INCLUDE_EL2_REGS && IMAGE_BL31) */
 }
 
+__unused
 static u_register_t mtpmu_disable_el3(u_register_t mdcr_el3)
 {
 	if (!is_feat_mtpmu_supported()) {
@@ -51,6 +52,8 @@ static u_register_t mtpmu_disable_el3(u_register_t mdcr_el3)
 void pmuv3_init_el3(void)
 {
 	u_register_t mdcr_el3 = read_mdcr_el3();
+
+	#if !(ENABLE_OPENCCA_PERF)
 
 	/* ---------------------------------------------------------------------
 	 * Initialise MDCR_EL3, setting all fields rather than relying on hw.
@@ -112,6 +115,47 @@ void pmuv3_init_el3(void)
 	 */
 	write_pmcr_el0((read_pmcr_el0() | PMCR_EL0_DP_BIT | PMCR_EL0_C_BIT |
 			PMCR_EL0_P_BIT) & ~(PMCR_EL0_X_BIT | PMCR_EL0_E_BIT));
+
+	#else
+	/* OpenCCA perf. Enable PMU counters in EL3 */
+	/* ---------------------------------------------------------------------
+	 * Configure MDCR_EL3 to allow EL3 performance monitoring
+	 * - MPMX: Set to 0: Counters are not affected by this mechanism.
+	 * - MCCD: Set to 0 to allow cycle counting in EL3
+	 * - SCCD: Set to 0 to allow cycle counting in Secure state (EL3)
+	 * - SPME: Set to 1 to enable EL3 event counting
+	 * - TPM: Keep at 0 to prevent trapping PMU accesses to EL3
+	 * - STE: Set 1 to do not prophibit secure state trace
+	 * ---------------------------------------------------------------------
+	 */
+	mdcr_el3 = (mdcr_el3 & ~MDCR_SCCD_BIT & ~MDCR_MCCD_BIT \
+		& ~MDCR_TPM_BIT & ~MDCR_MPMX_BIT) \
+		| MDCR_SPME_BIT | MDCR_STE_BIT;
+	write_mdcr_el3(mdcr_el3);
+
+
+
+	/* ---------------------------------------------------------------------
+	 * Initialise PMCR_EL0 setting all fields rather than relying
+	 * on hw. Some fields are architecturally UNKNOWN on reset.
+	 *
+	 * PMCR_EL0.DP: Set to zero to allow counting in prophibited areas
+	 *
+	 * PMCR_EL0.X: Set to 1 to disable export of events.
+	 *
+	 * PMCR_EL0.C: Set to one to reset PMCCNTR_EL0 to zero.
+	 *
+	 * PMCR_EL0.P: Set to one to reset each event counter PMEVCNTR<n>_EL0 to
+	 *  zero.
+	 *
+	 * PMCR_EL0.E: Set to zero to disable cycle and event counters.
+	 * ---------------------------------------------------------------------
+	 */
+	write_pmcr_el0((read_pmcr_el0() | PMCR_EL0_X_BIT | PMCR_EL0_C_BIT |
+			PMCR_EL0_P_BIT) & ~( PMCR_EL0_E_BIT | PMCR_EL0_DP_BIT));
+
+	#endif
+	
 }
 
 static u_register_t mtpmu_disable_el2(u_register_t mdcr_el2)

@@ -412,3 +412,6 @@ PRESERVE_DSU_PMU_REGS		:= 0
 
 # OpenCCA support to run Arm CCA on Arm v8 hardware 
 ENABLE_OPENCCA = 0
+
+# OpenCCA PMU patch to measure across EL and worlds
+ENABLE_OPENCCA_PERF = 0

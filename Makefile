@@ -1305,6 +1305,7 @@ $(eval $(call assert_numerics,\
 	SVE_VECTOR_LEN \
 	IMPDEF_SYSREG_TRAP \
 	ENABLE_OPENCCA \
+	ENABLE_OPENCCA_PERF \
 )))
 
 ifdef KEY_SIZE
@@ -1459,6 +1460,7 @@ $(eval $(call add_defines,\
 	EARLY_CONSOLE \
 	PRESERVE_DSU_PMU_REGS \
 	ENABLE_OPENCCA \
+	ENABLE_OPENCCA_PERF \
 )))
 
 ifeq (${PLATFORM_REPORT_CTX_MEM_USE}, 1)

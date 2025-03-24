@@ -211,3 +211,7 @@ ifeq (${ENABLE_OPENCCA},1)
 $(info Building with OPENCCA_RME support)
 include opencca/opencca.mk
 endif
+
+ifeq (${ENABLE_OPENCCA_PERF},1)
+$(info Building with OPENCCA_PERF support)
+endif

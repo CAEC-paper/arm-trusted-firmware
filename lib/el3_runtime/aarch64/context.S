@@ -397,6 +397,7 @@ no_mpam:
 	mrs	x18, sp_el0
 	str	x18, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_SP_EL0]
 
+#if !(ENABLE_OPENCCA_PERF)
 	/* PMUv3 is presumed to be always present */
 	mrs	x9, pmcr_el0
 	str	x9, [sp, #CTX_EL3STATE_OFFSET + CTX_PMCR_EL0]
@@ -404,6 +405,17 @@ no_mpam:
 	orr	x9, x9, #PMCR_EL0_DP_BIT
 	msr	pmcr_el0, x9
 	isb
+#else
+	/* Opencca_perf, these instructions account for overhead, 
+	   but are non functional */
+	mrs	x9, pmcr_el0
+	str	x9, [sp, #CTX_EL3STATE_OFFSET + CTX_OPENCCA_DUMMY]
+	orr	x18, x18, #PMCR_EL0_DP_BIT
+	msr	pmcr_el0, x9
+	isb
+#endif
+
+
 #if CTX_INCLUDE_PAUTH_REGS
 	/* ----------------------------------------------------------
  	 * Save the ARMv8.3-PAuth keys as they are not banked
@@ -482,9 +494,18 @@ func restore_gp_pmcr_pauth_regs
 	msr	APGAKeyHi_EL1, x9
 #endif /* CTX_INCLUDE_PAUTH_REGS */
 
+#if !(ENABLE_OPENCCA_PERF)
 	/* PMUv3 is presumed to be always present */
 	ldr	x0, [sp, #CTX_EL3STATE_OFFSET + CTX_PMCR_EL0]
 	msr	pmcr_el0, x0
+#else
+	/* Account for overhead, non functional */
+	ldr	x0, [sp, #CTX_EL3STATE_OFFSET + CTX_PMCR_EL0]
+	// msr	pmcr_el0, x0
+	// TODO/opencca: This msr currently not substituted
+	nop
+
+#endif
 	ldp	x0, x1, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_X0]
 	ldp	x2, x3, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_X2]
 	ldp	x4, x5, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_X4]
