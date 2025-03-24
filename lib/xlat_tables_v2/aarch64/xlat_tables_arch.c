@@ -58,6 +58,20 @@ uint32_t xlat_arch_get_pas(uint32_t attr)
 {
 	uint32_t pas = MT_PAS(attr);
 
+#if ENABLE_OPENCCA
+	/*
+	* XXX: OpenCCA we treat Realm PAS as NS,
+	* and Root PAS as Secure.
+	*/
+#if (MT_NS != MT_REALM) || (MT_ROOT != MT_SECURE)
+    #error "OpenCCA requires MT_NS = MT_REALM, MT_ROOT = MT_SECURE"
+#endif
+	if (pas == MT_NS) {
+		return LOWER_ATTRS(NS);
+	} else {
+		return 0U; /* MT_SECURE */
+	}
+#else
 	switch (pas) {
 #if ENABLE_RME
 	/* TTD.NSE = 1 and TTD.NS = 1 for Realm PAS */
@@ -72,6 +86,7 @@ uint32_t xlat_arch_get_pas(uint32_t attr)
 	default: /* MT_SECURE */
 		return 0U;
 	}
+#endif	
 }
 
 unsigned long long tcr_physical_addr_size_bits(unsigned long long max_addr)

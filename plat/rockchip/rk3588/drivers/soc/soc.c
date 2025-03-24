@@ -31,7 +31,17 @@ const mmap_region_t plat_rk_mmap[] = {
 			MT_DEVICE | MT_RW | MT_SECURE),
 	MAP_REGION_FLAT(DDR_SHARE_MEM, DDR_SHARE_SIZE,
 			MT_DEVICE | MT_RW | MT_NS),
-	{ 0 }
+
+
+	/* Bl31 configures L0 mappings */
+	#if ENABLE_OPENCCA
+		ARM_MAP_RMM_DRAM,
+		ARM_MAP_L0_GPT_REGION,
+		ARM_MAP_GPT_L1_DRAM,
+		ARM_MAP_EL3_RMM_SHARED_MEM,
+	#endif
+
+		{ 0 }
 };
 
 /* The RockChip power domain tree descriptor */

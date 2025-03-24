@@ -394,8 +394,17 @@ sync_handler64:
 	mov	x7, xzr
 
 #if ENABLE_RME
+
+#if ENABLE_OPENCCA
+	/* Load fake SCR_EL3 to receive stored NSE bit */
+	ldr x19, [x6, #CTX_EL3STATE_OFFSET + CTX_SCR_EL3_SPOOFED]
+#else
+	/* Load SCR_EL3 to receive stored NSE bit */
+	ldr x19, [x6, #CTX_EL3STATE_OFFSET + CTX_SCR_EL3]
+#endif
+
 	/* Copy SCR_EL3.NSE bit to the flag to indicate caller's security */
-	ubfx	x7, x18, #SCR_NSE_SHIFT, #1
+	ubfx	x7, x19, #SCR_NSE_SHIFT, #1
 
 	/*
 	 * Shift copied SCR_EL3.NSE bit by 5 to create space for

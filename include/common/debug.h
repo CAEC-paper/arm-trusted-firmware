@@ -137,5 +137,7 @@ void tf_log(const char *fmt, ...) __printflike(1, 2);
 void tf_log_newline(const char log_fmt[2]);
 void tf_log_set_max_level(unsigned int log_level);
 
+#include <opencca_debug.h>
+#include <plat/common/platform.h>
 #endif /* __ASSEMBLER__ */
 #endif /* DEBUG_H */

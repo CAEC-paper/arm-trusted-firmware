@@ -33,7 +33,8 @@ PLAT_INCLUDES		:=	-Iinclude/plat/common				\
 				-I${RK_PLAT_SOC}/drivers/scmi/			\
 				-I${RK_PLAT_SOC}/drivers/secure/		\
 				-I${RK_PLAT_SOC}/drivers/soc/			\
-				-I${RK_PLAT_SOC}/include/
+				-I${RK_PLAT_SOC}/include/\
+				-I${RK_PLAT_SOC}/opencca
 
 RK_GIC_SOURCES		:=	${GICV3_SOURCES}				\
 				plat/common/plat_gicv3.c			\
@@ -93,6 +94,8 @@ HW_ASSISTED_COHERENCY	:=	1
 USE_COHERENT_MEM	:=	0
 
 ENABLE_SPE_FOR_LOWER_ELS	:= 0
+
+SEPARATE_CODE_AND_RODATA := 1
 
 $(eval $(call add_define,PLAT_EXTRA_LD_SCRIPT))
 $(eval $(call add_define,PLAT_SKIP_DFS_TLB_DCACHE_MAINTENANCE))

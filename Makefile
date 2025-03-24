@@ -365,7 +365,10 @@ endif #(LD = armlink)
 ################################################################################
 # Setup ARCH_MAJOR/MINOR before parsing arch_features.
 ################################################################################
-ifeq (${ENABLE_RME},1)
+ifeq (${ENABLE_OPENCCA},1)
+	ARM_ARCH_MAJOR := 8
+	ARM_ARCH_MINOR := 2
+else ifeq (${ENABLE_RME},1)
 	ARM_ARCH_MAJOR := 9
 	ARM_ARCH_MINOR := 2
 endif
@@ -632,6 +635,12 @@ ifeq (${ENABLE_RME},1)
 
 	# RME enables CSV2_2 extension by default.
 	ENABLE_FEAT_CSV2_2 = 1
+
+ifeq (${ENABLE_OPENCCA},1)
+	CTX_INCLUDE_PAUTH_REGS := 0
+	ENABLE_FEAT_CSV2_2 := 0
+endif
+
 endif #(FEAT_RME)
 
 ################################################################################
@@ -1295,6 +1304,7 @@ $(eval $(call assert_numerics,\
 	ENABLE_FEAT_TWED \
 	SVE_VECTOR_LEN \
 	IMPDEF_SYSREG_TRAP \
+	ENABLE_OPENCCA \
 )))
 
 ifdef KEY_SIZE
@@ -1448,6 +1458,7 @@ $(eval $(call add_defines,\
 	PLATFORM_REPORT_CTX_MEM_USE \
 	EARLY_CONSOLE \
 	PRESERVE_DSU_PMU_REGS \
+	ENABLE_OPENCCA \
 )))
 
 ifeq (${PLATFORM_REPORT_CTX_MEM_USE}, 1)

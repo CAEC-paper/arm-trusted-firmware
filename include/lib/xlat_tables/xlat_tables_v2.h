@@ -98,8 +98,13 @@
 
 #define MT_SECURE		(U(0) << MT_PAS_SHIFT)
 #define MT_NS			(U(1) << MT_PAS_SHIFT)
+#if !ENABLE_OPENCCA
 #define MT_ROOT			(U(2) << MT_PAS_SHIFT)
 #define MT_REALM		(U(3) << MT_PAS_SHIFT)
+#else
+#define MT_ROOT			MT_SECURE
+#define MT_REALM		MT_NS
+#endif
 
 /*
  * Access permissions for instruction execution are only relevant for normal

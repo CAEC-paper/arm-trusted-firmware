@@ -182,6 +182,14 @@ static void setup_realm_context(cpu_context_t *ctx, const struct entry_point_inf
 	}
 
 	write_ctx_reg(state, CTX_SCR_EL3, scr_el3);
+
+	#if ENABLE_OPENCCA
+	u_register_t scr_el3_spoofed;
+	scr_el3_spoofed = read_ctx_reg(state, CTX_SCR_EL3_SPOOFED);
+	scr_el3_spoofed |= SCR_NSE_BIT;
+	write_ctx_reg(state, CTX_SCR_EL3_SPOOFED, scr_el3_spoofed);
+	#endif
+
 }
 #endif /* ENABLE_RME */
 
@@ -199,6 +207,13 @@ static void setup_ns_context(cpu_context_t *ctx, const struct entry_point_info *
 
 	/* SCR_NS: Set the NS bit */
 	scr_el3 |= SCR_NS_BIT;
+
+	#if ENABLE_OPENCCA
+	u_register_t scr_el3_spoofed;
+	scr_el3_spoofed = read_ctx_reg(state, CTX_SCR_EL3_SPOOFED);
+	scr_el3_spoofed &= ~SCR_NSE_BIT;
+	write_ctx_reg(state, CTX_SCR_EL3_SPOOFED, scr_el3_spoofed);
+	#endif
 
 	/* Allow access to Allocation Tags when FEAT_MTE2 is implemented and enabled. */
 	if (is_feat_mte2_supported()) {

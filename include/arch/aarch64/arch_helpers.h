@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <lib/gpt_rme/gpt_rme.h>
 
 #include <arch.h>
 
@@ -240,8 +241,10 @@ DEFINE_SYSOP_TYPE_PARAM_FUNC(at, s1e3r)
 DEFINE_SYSOP_PARAM_FUNC(xpaci)
 
 void flush_dcache_range(uintptr_t addr, size_t size);
+#if !(ENABLE_OPENCCA)
 void flush_dcache_to_popa_range(uintptr_t addr, size_t size);
 void flush_dcache_to_popa_range_mte2(uintptr_t addr, size_t size);
+#endif
 void clean_dcache_range(uintptr_t addr, size_t size);
 void inv_dcache_range(uintptr_t addr, size_t size);
 bool is_dcache_enabled(void);
@@ -685,9 +688,13 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(clusterpmxevtyper_el1, CLUSTERPMXEVTYPER_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(cpuppmcr_el3, CPUPPMCR_EL3)
 DEFINE_RENAME_SYSREG_RW_FUNCS(cpumpmmcr_el3, CPUMPMMCR_EL3)
 
+#if !(ENABLE_OPENCCA)
+
 /* Armv9.2 RME Registers */
 DEFINE_RENAME_SYSREG_RW_FUNCS(gptbr_el3, GPTBR_EL3)
 DEFINE_RENAME_SYSREG_RW_FUNCS(gpccr_el3, GPCCR_EL3)
+
+#endif
 
 #define IS_IN_EL(x) \
 	(GET_EL(read_CurrentEl()) == MODE_EL##x)
@@ -731,6 +738,8 @@ static inline uint64_t el_implemented(unsigned int el)
 		return (read_id_aa64pfr0_el1() >> shift) & ID_AA64PFR0_ELX_MASK;
 	}
 }
+
+#if !(ENABLE_OPENCCA)
 
 /*
  * TLBI PAALLOS instruction
@@ -813,6 +822,8 @@ static inline void tlbirpalos_512m(uintptr_t addr)
 {
 	TLBIRPALOS(addr, TLBI_SZ_512M);
 }
+
+#endif
 
 /* Previously defined accessor functions with incomplete register names  */
 

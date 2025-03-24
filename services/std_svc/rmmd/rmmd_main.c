@@ -346,6 +346,7 @@ uint64_t rmmd_rmi_handler(uint32_t smc_fid, uint64_t x1, uint64_t x2,
 			smc_fid |= (FUNCID_SVE_HINT_MASK <<
 				    FUNCID_SVE_HINT_SHIFT);
 		}
+		opencca_tlb_flush();
 		VERBOSE("RMMD: RMI call from non-secure world.\n");
 		return rmmd_smc_forward(NON_SECURE, REALM, smc_fid,
 					x1, x2, x3, x4, handle);
@@ -358,7 +359,7 @@ uint64_t rmmd_rmi_handler(uint32_t smc_fid, uint64_t x1, uint64_t x2,
 	switch (smc_fid) {
 	case RMM_RMI_REQ_COMPLETE: {
 		uint64_t x5 = SMC_GET_GP(handle, CTX_GPREG_X5);
-
+		opencca_tlb_flush();
 		return rmmd_smc_forward(REALM, NON_SECURE, x1,
 					x2, x3, x4, x5, handle);
 	}
@@ -473,8 +474,15 @@ uint64_t rmmd_rmm_el3_handler(uint32_t smc_fid, uint64_t x1, uint64_t x2,
 		ret = gpt_undelegate_pas(x1, PAGE_SIZE_4KB, SMC_FROM_REALM);
 		SMC_RET1(handle, gpt_to_gts_error(ret, smc_fid, x1));
 	case RMM_ATTEST_GET_PLAT_TOKEN:
+		/* 
+		 * TODO: opencca
+		 * For now we announce to be RMM_EL3_IFC_VERSION_MINOR 3
+		 * compatible. Reason: Be compatible with latest RMM version.
+		 * This leads to this small change in API here. 
+		 * instead of SMC_RET2(handle, ret, x2);
+		 */ 
 		ret = rmmd_attest_get_platform_token(x1, &x2, x3);
-		SMC_RET2(handle, ret, x2);
+		SMC_RET3(handle, ret, x2, 0 /*remaining length, quickfix */);
 	case RMM_ATTEST_GET_REALM_KEY:
 		ret = rmmd_attest_get_signing_key(x1, &x2, x3);
 		SMC_RET2(handle, ret, x2);

@@ -8,8 +8,10 @@
 #include <asm_macros.S>
 
 	.globl	flush_dcache_range
+	#if !(ENABLE_OPENCCA)
 	.globl	flush_dcache_to_popa_range
 	.globl	flush_dcache_to_popa_range_mte2
+	#endif
 	.globl	clean_dcache_range
 	.globl	inv_dcache_range
 	.globl	dcsw_op_louis
@@ -113,6 +115,7 @@ func inv_dcache_range
 	do_dcache_maintenance_by_mva ivac
 endfunc inv_dcache_range
 
+#if (!ENABLE_OPENCCA)
 	/*
 	 * ------------------------------------------
 	 * DCache Clean+Invalidate by PA to POPA from
@@ -142,6 +145,8 @@ func flush_dcache_to_popa_range_mte2
 	/* dc cigdpapa, x0 */
 	do_dcache_maintenance_instr dc_cigdpapa_x0
 endfunc	flush_dcache_to_popa_range_mte2
+
+#endif /* !ENABLE_OPENCCA */
 
 	/* ---------------------------------------------------------------
 	 * Data cache operations by set/way to the level specified

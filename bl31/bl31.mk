@@ -206,3 +206,8 @@ $(eval $(call add_defines,\
         EL3_EXCEPTION_HANDLING \
         SDEI_SUPPORT \
 )))
+
+ifeq (${ENABLE_OPENCCA},1)
+$(info Building with OPENCCA_RME support)
+include opencca/opencca.mk
+endif

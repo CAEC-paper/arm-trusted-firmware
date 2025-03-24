@@ -11,6 +11,9 @@
 
 #include <arch_helpers.h>
 #include <common/feat_detect.h>
+#if ENABLE_OPENCCA
+#include <opencca.h>
+#endif
 
 #define ISOLATE_FIELD(reg, feat, mask)						\
 	((unsigned int)(((reg) >> (feat)) & mask))
@@ -254,9 +257,11 @@ static inline bool is_feat_sxpoe_supported(void)
 	return is_feat_s1poe_supported() || is_feat_s2poe_supported();
 }
 
+#if !(ENABLE_OPENCCA)
 /* FEAT_S2PIE */
 CREATE_FEATURE_FUNCS(feat_s2pie, id_aa64mmfr3_el1, ID_AA64MMFR3_EL1_S2PIE_SHIFT,
 		     ID_AA64MMFR3_EL1_S2PIE_MASK, 1U, ENABLE_FEAT_S2PIE)
+#endif			 
 
 /* FEAT_S1PIE */
 CREATE_FEATURE_FUNCS(feat_s1pie, id_aa64mmfr3_el1, ID_AA64MMFR3_EL1_S1PIE_SHIFT,
@@ -268,9 +273,12 @@ static inline bool is_feat_sxpie_supported(void)
 	return is_feat_s1pie_supported() || is_feat_s2pie_supported();
 }
 
+#if !(ENABLE_OPENCCA)
 /* FEAT_GCS: Guarded Control Stack */
 CREATE_FEATURE_FUNCS(feat_gcs, id_aa64pfr1_el1, ID_AA64PFR1_EL1_GCS_SHIFT,
 		     ID_AA64PFR1_EL1_GCS_MASK, 1U, ENABLE_FEAT_GCS)
+
+#endif
 
 /* FEAT_AMU: Activity Monitors Extension */
 CREATE_FEATURE_FUNCS(feat_amu, id_aa64pfr0_el1, ID_AA64PFR0_AMU_SHIFT,
@@ -326,9 +334,12 @@ CREATE_FEATURE_FUNCS(feat_hcx, id_aa64mmfr1_el1, ID_AA64MMFR1_EL1_HCX_SHIFT,
 CREATE_FEATURE_PRESENT(feat_rng_trap, id_aa64pfr1_el1, ID_AA64PFR1_EL1_RNDR_TRAP_SHIFT,
 		      ID_AA64PFR1_EL1_RNDR_TRAP_MASK, RNG_TRAP_IMPLEMENTED)
 
+#if !ENABLE_OPENCCA
 /* Return the RME version, zero if not supported. */
 CREATE_FEATURE_FUNCS(feat_rme, id_aa64pfr0_el1, ID_AA64PFR0_FEAT_RME_SHIFT,
 		    ID_AA64PFR0_FEAT_RME_MASK, 1U, ENABLE_RME)
+
+#endif
 
 /* FEAT_SB: Speculation barrier instruction */
 CREATE_FEATURE_PRESENT(feat_sb, id_aa64isar1_el1, ID_AA64ISAR1_SB_SHIFT,

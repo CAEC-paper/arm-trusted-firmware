@@ -6,6 +6,7 @@
 
 #ifndef __PLAT_DEF_H__
 #define __PLAT_DEF_H__
+#include <rk3588_opencca.h>
 
 #define SIZE_K(n)		((n) * 1024)
 

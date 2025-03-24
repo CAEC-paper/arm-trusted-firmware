@@ -601,7 +601,11 @@ func el3_exit
 	 */
 
 	/* The address of the per_world context is stored in x9 */
+#if ENABLE_OPENCCA
+	get_per_world_context_spoofed x9
+#else
 	get_per_world_context x9
+#endif
 
 	ldp	x19, x20, [x9, #CTX_CPTR_EL3]
 	msr	cptr_el3, x19

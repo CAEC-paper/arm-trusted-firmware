@@ -86,9 +86,11 @@
  #define CTX_SAVED_ESR_EL3	U(0x50)
  #define CTX_SAVED_SPSR_EL3	U(0x58)
  #define CTX_SAVED_GPREG_LR	U(0x60)
- #define CTX_EL3STATE_END	U(0x70) /* Align to the next 16 byte boundary */
+ #define CTX_SCR_EL3_SPOOFED U(0x68) /* OpenCCA SCR_EL3 */
+ #define CTX_EL3STATE_END	U(0x80) /* Align to the next 16 byte boundary */
 #else
- #define CTX_EL3STATE_END	U(0x50) /* Align to the next 16 byte boundary */
+ #define CTX_SCR_EL3_SPOOFED	U(0x50) /* Dummy for memory r/w overheads */
+ #define CTX_EL3STATE_END	U(0x60) /* Align to the next 16 byte boundary */
 #endif /* FFH_SUPPORT */
 
 
