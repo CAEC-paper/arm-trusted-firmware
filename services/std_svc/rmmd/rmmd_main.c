@@ -346,6 +346,7 @@ uint64_t rmmd_rmi_handler(uint32_t smc_fid, uint64_t x1, uint64_t x2,
 			smc_fid |= (FUNCID_SVE_HINT_MASK <<
 				    FUNCID_SVE_HINT_SHIFT);
 		}
+		opencca_tlb_flush();
 		VERBOSE("RMMD: RMI call from non-secure world.\n");
 		return rmmd_smc_forward(NON_SECURE, REALM, smc_fid,
 					x1, x2, x3, x4, handle);
@@ -358,7 +359,7 @@ uint64_t rmmd_rmi_handler(uint32_t smc_fid, uint64_t x1, uint64_t x2,
 	switch (smc_fid) {
 	case RMM_RMI_REQ_COMPLETE: {
 		uint64_t x5 = SMC_GET_GP(handle, CTX_GPREG_X5);
-
+		opencca_tlb_flush();
 		return rmmd_smc_forward(REALM, NON_SECURE, x1,
 					x2, x3, x4, x5, handle);
 	}
