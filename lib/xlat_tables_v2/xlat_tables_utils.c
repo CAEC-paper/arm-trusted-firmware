@@ -123,16 +123,6 @@ static void xlat_desc_print(const xlat_ctx_t *ctx, uint64_t desc)
 #endif
 }
 
-static const char * const level_spacers[] = {
-	"[LV0] ",
-	"  [LV1] ",
-	"    [LV2] ",
-	"      [LV3] "
-};
-
-static const char *invalid_descriptors_ommited =
-		"%s(%d invalid descriptors omitted)\n";
-
 /*
  * Recursive function that reads the translation tables passed as an argument
  * and prints their status.
@@ -163,18 +153,18 @@ static void xlat_tables_print_internal(xlat_ctx_t *ctx, uintptr_t table_base_va,
 		if ((desc & DESC_MASK) == INVALID_DESC) {
 
 			if (invalid_row_count == 0) {
-				printf("%sVA:0x%lx size:0x%zx\n",
+				/* printf("%sVA:0x%lx size:0x%zx\n",
 				       level_spacers[level],
-				       table_idx_va, level_size);
+				       table_idx_va, level_size); */
 			}
 			invalid_row_count++;
 
 		} else {
 
 			if (invalid_row_count > 1) {
-				printf(invalid_descriptors_ommited,
+				/* printf(invalid_descriptors_ommited,
 				       level_spacers[level],
-				       invalid_row_count - 1);
+				       invalid_row_count - 1); */
 			}
 			invalid_row_count = 0;
 
@@ -191,9 +181,9 @@ static void xlat_tables_print_internal(xlat_ctx_t *ctx, uintptr_t table_base_va,
 				 * but instead points to the next translation
 				 * table in the translation table walk.
 				 */
-				printf("%sVA:0x%lx size:0x%zx\n",
+				/* printf("%sVA:0x%lx size:0x%zx\n",
 				       level_spacers[level],
-				       table_idx_va, level_size);
+				       table_idx_va, level_size); */
 
 				uintptr_t addr_inner = desc & TABLE_ADDR_MASK;
 
@@ -201,12 +191,12 @@ static void xlat_tables_print_internal(xlat_ctx_t *ctx, uintptr_t table_base_va,
 					(uint64_t *)addr_inner,
 					XLAT_TABLE_ENTRIES, level + 1U);
 			} else {
-				printf("%sVA:0x%lx PA:0x%" PRIx64 " size:0x%zx ",
+				/* printf("%sVA:0x%lx PA:0x%" PRIx64 " size:0x%zx ",
 				       level_spacers[level], table_idx_va,
 				       (uint64_t)(desc & TABLE_ADDR_MASK),
-				       level_size);
-				xlat_desc_print(ctx, desc);
-				printf("\n");
+				       level_size); */
+				/* xlat_desc_print(ctx, desc); */
+				/* printf("\n"); */
 			}
 		}
 
@@ -215,8 +205,8 @@ static void xlat_tables_print_internal(xlat_ctx_t *ctx, uintptr_t table_base_va,
 	}
 
 	if (invalid_row_count > 1) {
-		printf(invalid_descriptors_ommited,
-		       level_spacers[level], invalid_row_count - 1);
+		/* printf(invalid_descriptors_ommited,
+		       level_spacers[level], invalid_row_count - 1); */
 	}
 }
 

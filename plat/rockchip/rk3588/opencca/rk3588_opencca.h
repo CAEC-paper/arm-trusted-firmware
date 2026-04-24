@@ -40,18 +40,20 @@
  ******************************************************************************/
 #define ARM_DRAM_NUM_BANKS (2)
 
-// TODO: Make dram2 end dynamically detected
-
-
+/* ARM_DRAM2_SIZE_MAX: compile-time upper bound (worst-case 16 GB config).
+ * rk3588_detect_dram2_size() reads PMU1GRF OS regs at runtime and returns
+ * the true size; RMM_MAX_GRANULES must be sized for this maximum. */
 #define ARM_DRAM1_BASE			UL(0x0)
 #define ARM_DRAM1_SIZE			UL(0xf0000000)
 #define ARM_DRAM1_END			(ARM_DRAM1_BASE +		\
 					 ARM_DRAM1_SIZE - 1U)
 
-#define ARM_DRAM2_BASE			UL(0x100000000)
-#define ARM_DRAM2_SIZE			UL(0x300000000)
+#define ARM_DRAM2_BASE			ULL(0x100000000)
+#define ARM_DRAM2_SIZE_MAX		ULL(0x300000000)  /* 16-GB board: 12 GB bank2 */
+/* ARM_DRAM2_SIZE equals the max; the NS_RAM1 PAS entry is patched at runtime. */
+#define ARM_DRAM2_SIZE			ARM_DRAM2_SIZE_MAX
 #define ARM_DRAM2_END			(ARM_DRAM2_BASE +		\
-					 ARM_DRAM2_SIZE - 1U)					 
+					 ARM_DRAM2_SIZE_MAX - 1U)
 
 /* devices on dram0 bank*/
 #define ARM_DEVICES0_BASE UL(0xf0000000)
@@ -68,14 +70,22 @@
 #define ARM_DRAM_RME_RESERVE_SIZE UL(0x10000000)
 
 /* Ns memory */
-/* As of now we allow the entire first 4gb to be used as realm data if not occuped by firmware code) */
-#define RMM_NS_DRAM_BANKS (1)
+/* Both DRAM banks are exposed to RMM so realm memory can span above 4 GB */
+#define RMM_NS_DRAM_BANKS (2)
 
 #define RMM_NS_RAM0_BASE (ARM_DRAM_RME_RESERVE_SIZE + ARM_DRAM_BL31_RESERVE_SIZE)
 #define RMM_NS_RAM0_SIZE (ARM_DEVICES0_BASE - RMM_NS_RAM0_BASE)
 
 #define RMM_NS_RAM1_BASE ARM_DRAM2_BASE
-#define RMM_NS_RAM1_SIZE ARM_DRAM2_SIZE
+/* RMM_NS_RAM1_SIZE is the compile-time max; rk3588_opencca.c patches the
+ * ARM_PAS_NS_RAM1 entry and the boot manifest with the detected runtime size. */
+#define RMM_NS_RAM1_SIZE ARM_DRAM2_SIZE_MAX
+
+#ifndef __ASSEMBLER__
+/* Detect bank-2 (above 4 GB) size from PMU1GRF OS registers at runtime.
+ * Returns total_physical_dram - 4 GB; result is 0 if <= 4 GB. */
+uint64_t rk3588_detect_dram2_size(void);
+#endif /* __ASSEMBLER__ */
 
 
 /*******************************************************************************
@@ -101,8 +111,9 @@
 #define RMM_CONSOLE_NAME "pl011"
 
 
-/* ARM_REALM_SIZE */
-#define ARM_REALM_SIZE			(UL(0x02600000) -		\
+/* ARM_REALM_SIZE: sized for 16-GB board (RMM_MAX_GRANULES=0x400000).
+ * Covers RMM binary + 8 MB granule table. */
+#define ARM_REALM_SIZE			(UL(0x03200000) -		\
 					 ARM_EL3_RMM_SHARED_SIZE)
 
 #define ARM_REALM_BASE			(ARM_EL3_RMM_SHARED_BASE +	\

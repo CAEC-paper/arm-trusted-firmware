@@ -1,6 +1,7 @@
 #include <common/debug.h>
 #include <common/runtime_svc.h>
 #include <drivers/scmi-msg.h>
+#include <lib/mmio.h>
 
 #include <plat_sip_calls.h>
 #include <rockchip_sip_svc.h>
@@ -11,6 +12,144 @@
 #include <common/debug.h>
 #include <lib/gpt_rme/gpt_rme.h>
 #include <plat/common/platform.h>
+#include <soc.h>
+
+/*
+ * DRAM topology is stored in PMU1GRF OS registers by the DDR init firmware.
+ * This encoding matches U-Boot's arch/arm/include/asm/arch-rockchip/sdram.h.
+ */
+#define RK_SYS_REG_VERSION_SHIFT		28
+#define RK_SYS_REG_VERSION_MASK			0xf
+#define RK_SYS_REG_EXTEND_DDRTYPE_SHIFT		12
+#define RK_SYS_REG_EXTEND_DDRTYPE_MASK		3
+#define RK_SYS_REG_EXTEND_CS0_ROW_SHIFT(ch)	(5 + (ch) * 2)
+#define RK_SYS_REG_EXTEND_CS0_ROW_MASK		1
+#define RK_SYS_REG_EXTEND_CS1_ROW_SHIFT(ch)	(4 + (ch) * 2)
+#define RK_SYS_REG_EXTEND_CS1_ROW_MASK		1
+#define RK_SYS_REG_CS1_COL_SHIFT(ch)		(0 + (ch) * 2)
+#define RK_SYS_REG_CS1_COL_MASK		3
+#define RK_SYS_REG_DDRTYPE_SHIFT		13
+#define RK_SYS_REG_DDRTYPE_MASK		7
+#define RK_SYS_REG_NUM_CH_SHIFT			12
+#define RK_SYS_REG_NUM_CH_MASK			1
+#define RK_SYS_REG_ROW_3_4_SHIFT(ch)		(30 + (ch))
+#define RK_SYS_REG_ROW_3_4_MASK		1
+#define RK_SYS_REG_RANK_SHIFT(ch)		(11 + (ch) * 16)
+#define RK_SYS_REG_RANK_MASK			1
+#define RK_SYS_REG_COL_SHIFT(ch)		(9 + (ch) * 16)
+#define RK_SYS_REG_COL_MASK			3
+#define RK_SYS_REG_BK_SHIFT(ch)		(8 + (ch) * 16)
+#define RK_SYS_REG_BK_MASK			1
+#define RK_SYS_REG_CS0_ROW_SHIFT(ch)		(6 + (ch) * 16)
+#define RK_SYS_REG_CS0_ROW_MASK		3
+#define RK_SYS_REG_CS1_ROW_SHIFT(ch)		(4 + (ch) * 16)
+#define RK_SYS_REG_CS1_ROW_MASK		3
+#define RK_SYS_REG_BW_SHIFT(ch)		(2 + (ch) * 16)
+#define RK_SYS_REG_BW_MASK			3
+#define RK_SYS_REG_DBW_SHIFT(ch)		((ch) * 16)
+#define RK_SYS_REG_DBW_MASK			3
+#define RK_DDRTYPE_DDR4				0
+
+/* Decode MiB for one channel within a (sys_reg2, sys_reg3) pair. */
+static size_t rk3588_chan_size_mb(uint32_t r2, uint32_t r3, unsigned int ch)
+{
+	unsigned int version, dram_type, rank, cs0_col, cs1_col;
+	unsigned int bk, cs0_row, cs1_row, bw, bg, row_3_4, dbw;
+	size_t chipsize_mb;
+
+	version   = (r3 >> RK_SYS_REG_VERSION_SHIFT) & RK_SYS_REG_VERSION_MASK;
+	dram_type = (r2 >> RK_SYS_REG_DDRTYPE_SHIFT) & RK_SYS_REG_DDRTYPE_MASK;
+	if (version >= 3)
+		dram_type |= ((r3 >> RK_SYS_REG_EXTEND_DDRTYPE_SHIFT) &
+			      RK_SYS_REG_EXTEND_DDRTYPE_MASK) << 3;
+
+	rank    = 1 + ((r2 >> RK_SYS_REG_RANK_SHIFT(ch)) & RK_SYS_REG_RANK_MASK);
+	cs0_col = 9 + ((r2 >> RK_SYS_REG_COL_SHIFT(ch)) & RK_SYS_REG_COL_MASK);
+	cs1_col = cs0_col;
+	bk      = 3 - ((r2 >> RK_SYS_REG_BK_SHIFT(ch)) & RK_SYS_REG_BK_MASK);
+	bg      = 0;
+
+	if (version >= 2) {
+		uint32_t cs0_ext, cs1_ext;
+
+		cs1_col = 9 + ((r3 >> RK_SYS_REG_CS1_COL_SHIFT(ch)) &
+			       RK_SYS_REG_CS1_COL_MASK);
+
+		cs0_ext = (r3 >> RK_SYS_REG_EXTEND_CS0_ROW_SHIFT(ch)) &
+			  RK_SYS_REG_EXTEND_CS0_ROW_MASK;
+		cs0_row = (r2 >> RK_SYS_REG_CS0_ROW_SHIFT(ch)) &
+			  RK_SYS_REG_CS0_ROW_MASK;
+		cs0_row = ((cs0_ext << 2) + cs0_row == 7) ?
+			  12 : (13 + cs0_row + (cs0_ext << 2));
+
+		cs1_ext = (r3 >> RK_SYS_REG_EXTEND_CS1_ROW_SHIFT(ch)) &
+			  RK_SYS_REG_EXTEND_CS1_ROW_MASK;
+		cs1_row = (r2 >> RK_SYS_REG_CS1_ROW_SHIFT(ch)) &
+			  RK_SYS_REG_CS1_ROW_MASK;
+		cs1_row = ((cs1_ext << 2) + cs1_row == 7) ?
+			  12 : (13 + cs1_row + (cs1_ext << 2));
+	} else {
+		cs0_row = 13 + ((r2 >> RK_SYS_REG_CS0_ROW_SHIFT(ch)) &
+				RK_SYS_REG_CS0_ROW_MASK);
+		cs1_row = 13 + ((r2 >> RK_SYS_REG_CS1_ROW_SHIFT(ch)) &
+				RK_SYS_REG_CS1_ROW_MASK);
+	}
+
+	bw      = 2U >> ((r2 >> RK_SYS_REG_BW_SHIFT(ch)) & RK_SYS_REG_BW_MASK);
+	row_3_4 = (r2 >> RK_SYS_REG_ROW_3_4_SHIFT(ch)) & RK_SYS_REG_ROW_3_4_MASK;
+
+	if (dram_type == RK_DDRTYPE_DDR4) {
+		dbw = (r2 >> RK_SYS_REG_DBW_SHIFT(ch)) & RK_SYS_REG_DBW_MASK;
+		bg  = (dbw == 2) ? 2 : 1;
+	}
+
+	chipsize_mb = (size_t)1 << (cs0_row + cs0_col + bk + bg + bw - 20);
+	if (rank > 1)
+		chipsize_mb += chipsize_mb >>
+			((cs0_row - cs1_row) + (cs0_col - cs1_col));
+	if (row_3_4)
+		chipsize_mb = chipsize_mb * 3 / 4;
+
+	return chipsize_mb;
+}
+
+/* Read PMU1GRF OS register pair and sum all channels in that pair. */
+static size_t rk3588_pair_size_mb(unsigned int reg_idx)
+{
+	uint32_t r2 = mmio_read_32(PMU1GRF_BASE + PMU1GRF_OS_REG(reg_idx));
+	uint32_t r3 = mmio_read_32(PMU1GRF_BASE + PMU1GRF_OS_REG(reg_idx + 1));
+	unsigned int ch, ch_num = 1 + ((r2 >> RK_SYS_REG_NUM_CH_SHIFT) &
+					RK_SYS_REG_NUM_CH_MASK);
+	size_t total = 0;
+
+	for (ch = 0; ch < ch_num; ch++)
+		total += rk3588_chan_size_mb(r2, r3, ch);
+	return total;
+}
+
+/*
+ * Returns the size of DRAM bank 2 (above 4 GB) by reading the DDR topology
+ * from PMU1GRF OS registers written by the DDR init firmware.
+ *
+ * Formula: bank2_size = total_physical_dram - 4 GB
+ *   8-GB board  → 4 GB  (0x100000000)
+ *   16-GB board → 12 GB (0x300000000)
+ */
+uint64_t rk3588_detect_dram2_size(void)
+{
+	/* rk3588 has two OS-reg pairs: [2/3] for ch0-1, [4/5] for ch2-3 */
+	uint64_t total_mb = (uint64_t)rk3588_pair_size_mb(2) +
+			    (uint64_t)rk3588_pair_size_mb(4);
+	uint64_t total_bytes = total_mb << 20;
+	uint64_t four_gb     = ULL(0x100000000);
+
+	INFO("rk3588: detected total DRAM %llu MB\n", (unsigned long long)total_mb);
+
+	return (total_bytes > four_gb) ? (total_bytes - four_gb) : 0ULL;
+}
+
+/* Cached result — detected once in rk_gpt_setup(), reused in manifest. */
+static uint64_t s_dram2_size;
 
 #if ENABLE_RME
 /*
@@ -114,14 +253,12 @@ int plat_rmmd_load_manifest(struct rmm_manifest *manifest)
 	bank_ptr[0].size = RMM_NS_RAM0_SIZE;
 	checksum += bank_ptr[0].base + bank_ptr[0].size;
 
-	#if 0
-	// XXX: For now we only pass one RAM base
 	bank_ptr[1].base = RMM_NS_RAM1_BASE;
-	bank_ptr[1].size = RMM_NS_RAM1_SIZE;
+	bank_ptr[1].size = (size_t)s_dram2_size;
 	checksum += bank_ptr[1].base + bank_ptr[1].size;
-	#endif
 
 	INFO("NS_RAM0_BASE: 0x%lx, NS_RAM0_SIZE: 0x%lx\n", bank_ptr[0].base, bank_ptr[0].size);
+	INFO("NS_RAM1_BASE: 0x%lx, NS_RAM1_SIZE: 0x%lx\n", bank_ptr[1].base, bank_ptr[1].size);
 
 	/* Checksum must be 0 */
 	manifest->plat_dram.checksum = ~checksum + 1UL;
@@ -191,6 +328,13 @@ static const gpt_info_t gpt_info = {
 void rk_gpt_setup(void)
 {
 	VERBOSE("ARM_L1_GPT_BASE: %p\n", (void *)ARM_L1_GPT_BASE);
+
+	/* Detect actual bank-2 size and patch the NS_RAM1 PAS entry.
+	 * The static initialiser uses the compile-time max; overwrite it now
+	 * so the GPT only covers memory that physically exists. */
+	s_dram2_size = rk3588_detect_dram2_size();
+	INFO("rk3588: DRAM2 size 0x%llx bytes\n", (unsigned long long)s_dram2_size);
+	pas_regions[ARRAY_SIZE(pas_regions) - 1].size = (size_t)s_dram2_size;
 
 	/* Initialize entire protected space to GPT_GPI_ANY. */
 	if (gpt_init_l0_tables(gpt_info.pps, gpt_info.l0_base,
