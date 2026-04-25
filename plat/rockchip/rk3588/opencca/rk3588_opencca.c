@@ -49,6 +49,7 @@
 #define RK_SYS_REG_DBW_SHIFT(ch)		((ch) * 16)
 #define RK_SYS_REG_DBW_MASK			3
 #define RK_DDRTYPE_DDR4				0
+#define RK_DDRTYPE_LPDDR5			9
 
 /* Decode MiB for one channel within a (sys_reg2, sys_reg3) pair. */
 static size_t rk3588_chan_size_mb(uint32_t r2, uint32_t r3, unsigned int ch)
@@ -101,6 +102,8 @@ static size_t rk3588_chan_size_mb(uint32_t r2, uint32_t r3, unsigned int ch)
 	if (dram_type == RK_DDRTYPE_DDR4) {
 		dbw = (r2 >> RK_SYS_REG_DBW_SHIFT(ch)) & RK_SYS_REG_DBW_MASK;
 		bg  = (dbw == 2) ? 2 : 1;
+	} else if (dram_type == RK_DDRTYPE_LPDDR5) {
+		bg = 2; /* LPDDR5 bank-group contribution is implicit in sys_reg layout */
 	}
 
 	chipsize_mb = (size_t)1 << (cs0_row + cs0_col + bk + bg + bw - 20);
@@ -148,8 +151,15 @@ uint64_t rk3588_detect_dram2_size(void)
 	return (total_bytes > four_gb) ? (total_bytes - four_gb) : 0ULL;
 }
 
-/* Cached result — detected once in rk_gpt_setup(), reused in manifest. */
+/* Cached result — populated on first call, shared between manifest and GPT setup. */
 static uint64_t s_dram2_size;
+
+static uint64_t rk3588_dram2_size_get(void)
+{
+	if (s_dram2_size == 0ULL)
+		s_dram2_size = rk3588_detect_dram2_size();
+	return s_dram2_size;
+}
 
 #if ENABLE_RME
 /*
@@ -254,7 +264,7 @@ int plat_rmmd_load_manifest(struct rmm_manifest *manifest)
 	checksum += bank_ptr[0].base + bank_ptr[0].size;
 
 	bank_ptr[1].base = RMM_NS_RAM1_BASE;
-	bank_ptr[1].size = (size_t)s_dram2_size;
+	bank_ptr[1].size = (size_t)rk3588_dram2_size_get();
 	checksum += bank_ptr[1].base + bank_ptr[1].size;
 
 	INFO("NS_RAM0_BASE: 0x%lx, NS_RAM0_SIZE: 0x%lx\n", bank_ptr[0].base, bank_ptr[0].size);
@@ -329,12 +339,13 @@ void rk_gpt_setup(void)
 {
 	VERBOSE("ARM_L1_GPT_BASE: %p\n", (void *)ARM_L1_GPT_BASE);
 
-	/* Detect actual bank-2 size and patch the NS_RAM1 PAS entry.
-	 * The static initialiser uses the compile-time max; overwrite it now
-	 * so the GPT only covers memory that physically exists. */
-	s_dram2_size = rk3588_detect_dram2_size();
-	INFO("rk3588: DRAM2 size 0x%llx bytes\n", (unsigned long long)s_dram2_size);
-	pas_regions[ARRAY_SIZE(pas_regions) - 1].size = (size_t)s_dram2_size;
+	/* Patch the NS_RAM1 PAS entry with the actual bank-2 size.
+	 * rk3588_dram2_size_get() is idempotent; this call may be the first
+	 * (if RMM was absent) or a no-op (value already cached by manifest). */
+	pas_regions[ARRAY_SIZE(pas_regions) - 1].size =
+		(size_t)rk3588_dram2_size_get();
+	INFO("rk3588: DRAM2 size 0x%llx bytes\n",
+	     (unsigned long long)pas_regions[ARRAY_SIZE(pas_regions) - 1].size);
 
 	/* Initialize entire protected space to GPT_GPI_ANY. */
 	if (gpt_init_l0_tables(gpt_info.pps, gpt_info.l0_base,
